@@ -1,0 +1,33 @@
+# Phase 3 Infrastructure Test Document
+
+This is a sample document for testing the PDF Conversation System infrastructure.
+
+## Test Content
+
+The document ingestion system should be able to process this text and:
+1. Upload it to the processing S3 bucket
+2. Trigger Textract for OCR processing
+3. Process results through the textract-results-processor
+4. Generate embeddings via Bedrock
+5. Store vectors for semantic search
+
+## Key Features to Test
+
+- **Document Upload**: Validate file upload to S3
+- **Metadata Storage**: Ensure document metadata is stored in DynamoDB
+- **Processing Pipeline**: Verify the complete workflow functions
+- **Query System**: Test semantic search capabilities
+- **Error Handling**: Validate error scenarios and recovery
+
+## Security Testing
+
+This document also helps test:
+- IAM role permissions
+- S3 bucket access controls
+- DynamoDB access patterns
+- Lambda function security
+
+---
+
+Generated for Phase 3 Infrastructure Testing
+PDF Conversation System - Account 874962954560

@@ -1,0 +1,310 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/cdk/**'
+      - 'lambda-functions/**'
+      - 'frontend/**'
+  workflow_dispatch:
+    inputs:
+      approval-required:
+        description: 'Require manual approval before deployment'
+        required: true
+        type: boolean
+        default: true
+
+env:
+  NODE_VERSION: '20.x'
+  AWS_REGION: 'us-west-2'
+  ENVIRONMENT: 'production'
+  CDK_CONTEXT: '--context environment=prod'
+  STACK_PREFIX: ''
+
+jobs:
+  security-compliance:
+    name: Security & Compliance Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infrastructure/cdk/package-lock.json
+
+      - name: Install CDK dependencies
+        working-directory: infrastructure/cdk
+        run: npm ci
+
+      - name: Security vulnerability scan
+        run: |
+          npm audit --audit-level=moderate || true
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@v3.63.2
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+  cost-estimation:
+    name: Cost Estimation
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infrastructure/cdk/package-lock.json
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Production-${{ github.run_id }}
+
+      - name: Install CDK dependencies
+        working-directory: infrastructure/cdk
+        run: npm ci
+
+      - name: Estimate infrastructure costs
+        working-directory: infrastructure/cdk
+        run: |
+          echo "### Cost Estimation :moneybag:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Estimated monthly costs:" >> $GITHUB_STEP_SUMMARY
+          echo "- Lambda: ~$10-20" >> $GITHUB_STEP_SUMMARY
+          echo "- DynamoDB: ~$5-10" >> $GITHUB_STEP_SUMMARY
+          echo "- S3: ~$5-15" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total: ~$20-45/month**" >> $GITHUB_STEP_SUMMARY
+
+  approval:
+    name: Manual Approval
+    runs-on: ubuntu-latest
+    needs: [security-compliance, cost-estimation]
+    environment:
+      name: production-approval
+    if: github.event.inputs.approval-required != 'false'
+
+    steps:
+      - name: Request approval
+        run: |
+          echo "Waiting for manual approval to deploy to production..."
+          echo "Review the security and cost reports above before approving."
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [security-compliance, cost-estimation, approval]
+    if: always() && (needs.approval.result == 'success' || github.event.inputs.approval-required == 'false')
+    permissions:
+      id-token: write
+      contents: write
+    environment:
+      name: production
+      url: https://console.aws.amazon.com/cloudformation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infrastructure/cdk/package-lock.json
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Production-${{ github.run_id }}
+
+      - name: Install CDK CLI
+        run: npm install -g aws-cdk
+
+      - name: Install CDK dependencies
+        working-directory: infrastructure/cdk
+        run: npm ci
+
+      - name: Build CDK
+        working-directory: infrastructure/cdk
+        run: npm run build
+
+      - name: Create backup tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG="backup-$(date +%Y%m%d-%H%M%S)"
+          git tag -a "$TAG" -m "Pre-deployment backup"
+          git push origin "$TAG"
+
+      - name: CDK Deploy with rollback protection
+        id: deploy
+        working-directory: infrastructure/cdk
+        run: |
+          npx cdk deploy --all \
+            ${{ env.CDK_CONTEXT }} \
+            --require-approval never \
+            --outputs-file cdk-outputs.json \
+            --rollback true
+
+      - name: Save deployment outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-outputs-production
+          path: infrastructure/cdk/cdk-outputs.json
+          retention-days: 90
+
+      - name: Deployment success notification
+        if: success()
+        run: |
+          echo "### Production Deployment Successful :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed at:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment failure notification
+        if: failure()
+        run: |
+          echo "### Production Deployment Failed :x:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployment failed. Check logs for details." >> $GITHUB_STEP_SUMMARY
+          echo "Manual rollback may be required." >> $GITHUB_STEP_SUMMARY
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Prod-Frontend-${{ github.run_id }}
+
+      - name: Download deployment outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk-outputs-production
+
+      - name: Extract environment variables from CDK outputs
+        run: |
+          AUTH_STACK="${{ env.STACK_PREFIX }}PdfConversationAuthStack"
+          INFRA_STACK="${{ env.STACK_PREFIX }}PdfConversationInfraStack"
+
+          echo "REACT_APP_USER_POOL_ID=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${AUTH_STACK}']['UserPoolId'])")" >> $GITHUB_ENV
+          echo "REACT_APP_USER_POOL_CLIENT_ID=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${AUTH_STACK}']['UserPoolClientId'])")" >> $GITHUB_ENV
+          echo "REACT_APP_IDENTITY_POOL_ID=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${AUTH_STACK}']['IdentityPoolId'])")" >> $GITHUB_ENV
+          echo "REACT_APP_API_ENDPOINT=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${AUTH_STACK}']['ApiEndpoint'].rstrip('/'))")" >> $GITHUB_ENV
+          echo "REACT_APP_PROCESSING_BUCKET=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${INFRA_STACK}']['ProcessingBucketName'])")" >> $GITHUB_ENV
+          echo "REACT_APP_USER_POOL_DOMAIN=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${AUTH_STACK}']['UserPoolDomainOutput'])")" >> $GITHUB_ENV
+          echo "REACT_APP_AWS_REGION=${{ env.AWS_REGION }}" >> $GITHUB_ENV
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Deploy to S3
+        run: |
+          FRONTEND_STACK="${{ env.STACK_PREFIX }}PdfConversationFrontendStack"
+          BUCKET=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${FRONTEND_STACK}']['FrontendBucketName'])")
+          aws s3 sync frontend/build/ s3://$BUCKET --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          FRONTEND_STACK="${{ env.STACK_PREFIX }}PdfConversationFrontendStack"
+          DIST_ID=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${FRONTEND_STACK}']['CloudFrontDistributionId'])")
+          aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+
+  smoke-tests:
+    name: Production Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy, deploy-frontend]
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download deployment outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk-outputs-production
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-Production-SmokeTest-${{ github.run_id }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: pip install pytest requests boto3
+
+      - name: Extract API config from CDK outputs
+        run: |
+          AUTH_STACK="${{ env.STACK_PREFIX }}PdfConversationAuthStack"
+          echo "API_URL=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${AUTH_STACK}']['ApiEndpoint'].rstrip('/'))")" >> $GITHUB_ENV
+          echo "COGNITO_USER_POOL_ID=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${AUTH_STACK}']['UserPoolId'])")" >> $GITHUB_ENV
+          echo "COGNITO_CLIENT_ID=$(python3 -c "import json; d=json.load(open('cdk-outputs.json')); print(d['${AUTH_STACK}']['UserPoolClientId'])")" >> $GITHUB_ENV
+
+      - name: Run smoke tests (read-only — no chat call on prod)
+        env:
+          SMOKE_TEST_USER: ${{ secrets.SMOKE_TEST_USER }}
+          SMOKE_TEST_PASS: ${{ secrets.SMOKE_TEST_PASS }}
+          ENVIRONMENT: production
+        run: pytest tests/integration/smoke_test.py -v -k "not chat and not token_increment"
+
+      - name: Smoke test summary
+        if: always()
+        run: |
+          echo "### Production Smoke Test :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }} | Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

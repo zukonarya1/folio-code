@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+cdk.out/
+.cdk.staging/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+venv/
+.venv/
+env/
+*.egg-info/
+.Python
+
+# Logs
+*.log
+
+# AWS
+*.pem
+*.key
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Claude
+.claude/
+
+# Screenshots (visual verification artifacts, not source code)
+docs/screenshots/*.png
+
+# Project specific
+_dump/
+assessment-tools/*/analysis/
+cdk.context.json
+
+# Marketing assets (large binaries, local only)
+marketing/videos/
+marketing/img/
+
+# Screenshots (visual verification artifacts, local only)
+docs/screenshots/
+screenshots/
+
+# Test artifacts
+test-results/
+tests/summary_20260212/
+
+# Playwright MCP (managed globally)
+.playwright-mcp/
+.worktrees/
+
+# Superpowers plugin runtime data
+.superpowers/

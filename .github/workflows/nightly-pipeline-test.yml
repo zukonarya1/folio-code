@@ -1,0 +1,55 @@
+name: Nightly Pipeline Test
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC daily — off-peak for Bedrock
+  workflow_dispatch:        # allow manual trigger
+
+env:
+  AWS_REGION: 'us-west-2'
+  STACK_PREFIX: 'dev-'
+  ENVIRONMENT: 'dev'
+
+jobs:
+  pipeline-test:
+    name: Full Pipeline Test (dev)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-NightlyPipeline-${{ github.run_id }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: pip install pytest requests boto3 pytest-ordering pytest-timeout
+
+      - name: Run pipeline test
+        env:
+          SMOKE_TEST_USER: ${{ secrets.SMOKE_TEST_USER }}
+          SMOKE_TEST_PASS: ${{ secrets.SMOKE_TEST_PASS }}
+          SMOKE_TEST_DOC_ID: ${{ secrets.SMOKE_TEST_DOC_ID }}
+          API_URL: ${{ secrets.DEV_API_URL }}
+          COGNITO_USER_POOL_ID: ${{ secrets.DEV_COGNITO_POOL_ID }}
+          COGNITO_CLIENT_ID: ${{ secrets.DEV_COGNITO_CLIENT_ID }}
+          PROCESSING_BUCKET: ${{ secrets.DEV_PROCESSING_BUCKET }}
+        run: pytest tests/integration/pipeline_test.py -v -s --timeout=300
+
+      - name: Pipeline test summary
+        if: always()
+        run: |
+          echo "### Nightly Pipeline Test :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "Run: ${{ github.run_id }} | Date: $(date -u)" >> $GITHUB_STEP_SUMMARY

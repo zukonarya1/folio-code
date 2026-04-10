@@ -1,0 +1,46 @@
+name: Cleanup Merged Branches
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Delete Merged Branches
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete merged branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PROTECTED="main develop staging"
+
+          for branch in $(git branch -r --merged origin/main | grep -v HEAD | sed 's/origin\///' | xargs); do
+            SKIP=false
+            for protected in $PROTECTED; do
+              if [ "$branch" = "$protected" ]; then
+                SKIP=true
+                break
+              fi
+            done
+
+            if [ "$SKIP" = "false" ]; then
+              echo "Deleting merged branch: $branch"
+              gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch" || true
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "### Branch Cleanup :broom:" >> $GITHUB_STEP_SUMMARY
+          echo "Merged branches have been cleaned up" >> $GITHUB_STEP_SUMMARY

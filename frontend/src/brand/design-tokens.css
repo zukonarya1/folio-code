@@ -1,0 +1,187 @@
+/* Blade Design System v3 — Design Tokens */
+
+:root {
+  /* ── Surfaces (Dark default) */
+  --blade-bg: #0C0D10;
+  --blade-surface: rgba(21, 23, 32, 0.72);
+  --blade-surface-raised: rgba(28, 31, 43, 0.80);
+  --blade-surface-opaque: #151720;
+
+  /* ── Borders */
+  --blade-border: #2A2D3A;
+  --blade-border-active: #E53E3E;
+
+  /* ── Text */
+  --blade-text: #E8ECF0;
+  --blade-text-secondary: #C4C9D4;
+  --blade-text-muted: #8B92A5;
+  --blade-text-faint: #555B6E;
+
+  /* ── Accent */
+  --blade-accent: #F56565;
+  --blade-accent-deep: #E53E3E;
+  --blade-accent-subtle: rgba(245, 101, 101, 0.08);
+  --blade-accent-glow: rgba(245, 101, 101, 0.2);
+  --blade-accent-on-accent: #0C0D10;
+
+  /* ── Secondary */
+  --blade-secondary: #FC8181;
+
+  /* ── Scores */
+  --blade-score-high: #F56565;
+  --blade-score-mid: #ED8936;
+  --blade-score-low: #8B92A5;
+  --blade-score-min: #555B6E;
+
+  /* ── Status */
+  --blade-success: #48BB78;
+  --blade-warning: #ED8936;
+  --blade-error: #F56565;
+
+  /* ── Components */
+  --blade-bar-track: #2A2D3A;
+  --blade-card-hover: #1C1F2B;
+  --blade-filter-active: #F56565;
+  --blade-filter-active-txt: #0C0D10;
+  --blade-toggle-bg: #1C1F2B;
+  --blade-toggle-knob: #F56565;
+
+  /* ── Shadows */
+  --blade-shadow-card: none;
+  --blade-shadow-card-active: 0 0 0 3px rgba(245, 101, 101, 0.2);
+  --blade-shadow-button: 0 0 16px rgba(245, 101, 101, 0.2);
+  --blade-shadow-glow: 0 0 8px rgba(245, 101, 101, 0.2);
+  --blade-shadow-drop-glow: drop-shadow(0 0 4px rgba(245, 101, 101, 0.2));
+
+  /* ── Typography */
+  --blade-font-body: 'DM Sans', sans-serif;
+  --blade-font-mono: 'Space Mono', monospace;
+
+  /* ── Spacing (4px grid) */
+  --blade-space-xs: 4px;
+  --blade-space-sm: 8px;
+  --blade-space-md: 12px;
+  --blade-space-lg: 16px;
+  --blade-space-xl: 20px;
+  --blade-space-2xl: 24px;
+  --blade-space-3xl: 32px;
+  --blade-space-4xl: 40px;
+
+  /* ── Border Radius */
+  --blade-radius-tag: 4px;
+  --blade-radius-input: 6px;
+  --blade-radius-button: 8px;
+  --blade-radius-card: 10px;
+  --blade-radius-panel: 12px;
+  --blade-radius-circle: 50%;
+  --blade-radius-toggle: 12px;
+
+  /* ── Transitions */
+  --blade-transition-bg: background 0.4s ease;
+  --blade-transition-border: border-color 0.3s ease;
+  --blade-transition-color: color 0.3s ease;
+  --blade-transition-layout: all 0.25s ease;
+  --blade-transition-fast: all 0.15s ease;
+  --blade-transition-theme: background 0.4s ease, color 0.3s ease, border-color 0.3s ease;
+
+  /* ── Layout */
+  --blade-header-height: 56px;
+  --blade-z-header: 100;
+
+  --blade-glow-bg: radial-gradient(at 100% 0%, hsla(0, 83%, 65%, 0.38) 0, transparent 55%), radial-gradient(at 80% 20%, hsla(0, 83%, 55%, 0.20) 0, transparent 45%);
+}
+
+
+/* ── Light Mode */
+
+[data-theme="light"] {
+  --blade-bg: #F5F6F8;
+  --blade-surface: #FFFFFF;
+  --blade-surface-raised: #F9FAFB;
+  --blade-surface-opaque: #FFFFFF;
+
+  --blade-border: #E2E6ED;
+  --blade-border-active: #C53030;
+
+  --blade-text: #1A1D26;
+  --blade-text-secondary: #374151;
+  --blade-text-muted: #6B7280;
+  --blade-text-faint: #9CA3AF;
+
+  --blade-accent: #C53030;
+  --blade-accent-deep: #9B2C2C;
+  --blade-accent-subtle: rgba(197, 48, 48, 0.06);
+  --blade-accent-glow: rgba(197, 48, 48, 0.08);
+  --blade-accent-on-accent: #FFFFFF;
+
+  --blade-secondary: #E53E3E;
+
+  --blade-score-high: #C53030;
+  --blade-score-mid: #C05621;
+  --blade-score-low: #6B7280;
+  --blade-score-min: #9CA3AF;
+
+  --blade-success: #2F855A;
+  --blade-warning: #C05621;
+  --blade-error: #C53030;
+
+  --blade-bar-track: #EDF0F4;
+  --blade-card-hover: #F9FAFB;
+  --blade-filter-active: #C53030;
+  --blade-filter-active-txt: #FFFFFF;
+  --blade-toggle-bg: #E2E6ED;
+  --blade-toggle-knob: #C53030;
+
+  --blade-shadow-card: none;
+  --blade-shadow-card-active: 0 0 0 3px rgba(197, 48, 48, 0.08);
+  --blade-shadow-button: 0 2px 8px rgba(197, 48, 48, 0.2);
+  --blade-shadow-glow: 0 0 4px rgba(197, 48, 48, 0.08);
+  --blade-shadow-drop-glow: none;
+
+  --blade-glow-bg: radial-gradient(at 100% 0%, hsla(0, 72%, 42%, 0.10) 0, transparent 55%), radial-gradient(at 80% 20%, hsla(0, 72%, 42%, 0.05) 0, transparent 45%);
+}
+
+
+/* ── Animations */
+
+@keyframes blade-emerge {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blade-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+
+/* ── Utilities */
+
+.blade-loader {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--blade-border);
+  border-top-color: var(--blade-accent);
+  border-radius: var(--blade-radius-circle);
+  animation: blade-spin 1s linear infinite;
+}
+
+.blade-animate-in {
+  animation: blade-emerge 0.4s ease both;
+}

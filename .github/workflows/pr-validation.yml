@@ -1,0 +1,218 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - staging
+      - main
+    paths:
+      - 'infrastructure/cdk/**'
+      - 'lambda-functions/**'
+      - 'frontend/**'
+      - '.github/workflows/**'
+      - 'tests/**'
+
+env:
+  NODE_VERSION: '20.x'
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infrastructure/cdk/package-lock.json
+
+      - name: Install CDK dependencies
+        working-directory: infrastructure/cdk
+        run: npm ci
+
+      - name: Run TypeScript linting
+        working-directory: infrastructure/cdk
+        run: npm run lint
+
+      - name: Check TypeScript compilation
+        working-directory: infrastructure/cdk
+        run: npm run build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python linting tools
+        run: pip install black flake8
+
+      - name: Python code formatting check
+        if: hashFiles('lambda-functions/**/*.py') != ''
+        run: |
+          black --check lambda-functions/
+          flake8 lambda-functions/ --max-line-length 120 --extend-ignore E501,E203
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Run secret scanning
+        uses: trufflesecurity/trufflehog@v3.88.1
+        with:
+          path: ./
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infrastructure/cdk/package-lock.json
+
+      - name: Install CDK dependencies
+        working-directory: infrastructure/cdk
+        run: npm ci
+
+      - name: CDK synth validation
+        working-directory: infrastructure/cdk
+        run: |
+          npm run build
+          npx cdk synth --all --context environment=dev --quiet
+
+  cdk-diff:
+    name: CDK Diff Preview
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infrastructure/cdk/package-lock.json
+
+      - name: Install CDK dependencies
+        working-directory: infrastructure/cdk
+        run: npm ci
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: us-west-2
+          role-session-name: GitHubActions-PR-${{ github.run_id }}
+
+      - name: Build CDK
+        working-directory: infrastructure/cdk
+        run: npm run build
+
+      - name: CDK Diff
+        id: cdk-diff
+        working-directory: infrastructure/cdk
+        run: |
+          npx cdk diff --all --context environment=prod > diff-output.txt 2>&1 || true
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          cat diff-output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with CDK Diff
+        uses: actions/github-script@v7
+        env:
+          DIFF_OUTPUT: ${{ steps.cdk-diff.outputs.diff }}
+        with:
+          script: |
+            const output = `### CDK Diff Preview
+
+            <details>
+            <summary>Infrastructure Changes</summary>
+
+            \`\`\`
+            ${process.env.DIFF_OUTPUT}
+            \`\`\`
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infrastructure/cdk/package-lock.json
+
+      - name: Install CDK dependencies
+        working-directory: infrastructure/cdk
+        run: npm ci
+
+      - name: Run CDK tests
+        working-directory: infrastructure/cdk
+        run: npm test
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python test dependencies
+        if: hashFiles('lambda-functions/**/requirements-test.txt') != ''
+        run: |
+          pip install pytest pytest-cov
+          find lambda-functions -name "requirements-test.txt" -exec pip install -r {} \;
+
+      - name: Run Lambda function tests
+        if: hashFiles('lambda-functions/**/test_*.py') != ''
+        run: |
+          pytest lambda-functions/conversation/tests/ -v
+          pytest lambda-functions/document-ingestion/tests/ -v
+          pytest lambda-functions/summary-generation/tests/ -v
+          pytest lambda-functions/usage/tests/ -v
+
+      - name: Upload coverage reports
+        if: hashFiles('lambda-functions/**/test_*.py') != ''
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: lambda-tests
+          name: lambda-coverage
