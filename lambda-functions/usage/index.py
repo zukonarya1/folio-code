@@ -92,3 +92,4 @@ def lambda_handler(event, context):
         "headers": _cors_headers(event),
         "body": json.dumps(body, default=_decimal_default),
     }
+# phase4 validation trigger
