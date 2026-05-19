@@ -13,7 +13,7 @@ export interface EnvironmentConfig {
 
 export function buildEnvironmentConfig(name: EnvironmentName): EnvironmentConfig {
   const base = {
-    accountId: '874962954560',
+    accountId: '123456789012',
     region: 'us-west-2',
   };
 
