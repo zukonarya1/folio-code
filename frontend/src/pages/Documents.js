@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DocumentTitle from '../components/DocumentTitle';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import awsConfig from '../aws-config';
 import UploadZone from '../components/UploadZone';
+
+const IN_FLIGHT = new Set(['uploading', 'processing', 'completed', 'vectorized']);
 
 function Documents({ user }) {
   const [documents, setDocuments] = useState([]);
@@ -11,39 +14,55 @@ function Documents({ user }) {
   const [showUpload, setShowUpload] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadDocuments();
+  const pollRef = useRef(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
   }, []);
 
-  const loadDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
-
       const apiEndpoint = awsConfig.API.REST.PdfConversationApi.endpoint;
-
       const response = await fetch(`${apiEndpoint}/documents`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch documents');
-      }
-
+      if (!response.ok) throw new Error('Failed to fetch documents');
       const data = await response.json();
-      setDocuments(data.documents || []);
+      const docs = data.documents || [];
+      setDocuments(docs);
+      if (!docs.some(d => IN_FLIGHT.has(d.status))) {
+        stopPolling();
+      }
+      return docs;
     } catch (err) {
       console.error('Error loading documents:', err);
       setError(err.message);
-    } finally {
-      setLoading(false);
+      stopPolling();
+      return [];
     }
-  };
+  }, [stopPolling]);
+
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    const docs = await fetchDocuments();
+    setLoading(false);
+    if (docs.some(d => IN_FLIGHT.has(d.status)) && !pollRef.current) {
+      pollRef.current = setInterval(fetchDocuments, 5000);
+    }
+  }, [fetchDocuments]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -141,7 +160,9 @@ function Documents({ user }) {
                 onClick={() => navigate(`/documents/${doc.document_id}`)}
               >
                 <div className="document-info">
-                  <h4>{doc.filename}</h4>
+                  <h4>
+                    <DocumentTitle title={doc.title} filename={doc.filename} clamp={true} />
+                  </h4>
                   <p>
                     Uploaded: {formatDate(doc.created_at)}
                   </p>
