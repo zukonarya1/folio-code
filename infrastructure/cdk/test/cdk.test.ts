@@ -903,7 +903,7 @@ describe('Prod environment resource names', () => {
                 ],
                 Condition: {
                   StringEquals: {
-                    'bedrock:InferenceProfileArn': `arn:aws:bedrock:us-west-2:${prodEnvConfig.accountId}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+                    'bedrock:InferenceProfileArn': `arn:aws:bedrock:us-west-2:${ACCOUNT_ID}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
                   },
                 },
               }),
@@ -936,7 +936,7 @@ describe('Prod environment resource names', () => {
                 ],
                 Condition: {
                   StringEquals: {
-                    'bedrock:InferenceProfileArn': `arn:aws:bedrock:us-west-2:${prodEnvConfig.accountId}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+                    'bedrock:InferenceProfileArn': `arn:aws:bedrock:us-west-2:${ACCOUNT_ID}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
                   },
                 },
               }),

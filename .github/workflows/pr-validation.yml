@@ -92,6 +92,8 @@ jobs:
 
       - name: CDK synth validation
         working-directory: infrastructure/cdk
+        env:
+          CDK_DEFAULT_ACCOUNT: '123456789012'
         run: |
           npm run build
           npx cdk synth --all --context environment=dev --quiet

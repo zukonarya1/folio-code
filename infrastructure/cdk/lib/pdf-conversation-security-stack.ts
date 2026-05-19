@@ -20,7 +20,11 @@ export class PdfConversationSecurityStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: SecurityStackProps) {
     super(scope, id, props);
 
-    const { accountId, region } = props.envConfig;
+    const { region } = props.envConfig;
+    // this.account is concrete (not a CloudFormation token) because app.ts always sets env.account
+    // from CDK_DEFAULT_ACCOUNT. S3 bucket name ARNs embed accountId as a physical string component —
+    // they cannot tolerate a token value.
+    const accountId = this.account;
     const p = props.envConfig.prefix;
 
     // Textract Service Role (used by Textract to publish SNS notifications)
