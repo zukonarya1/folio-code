@@ -40,9 +40,7 @@ export default function SummaryRenderer({ summary }) {
 
   return (
     <div className="summary-content">
-      {data.title && (
-        <h2 className="animate-blade-emerge">{data.title}</h2>
-      )}
+      <h2>Summary</h2>
 
       <div className="w-24 h-px bg-blade-border opacity-50 my-6" />
 
