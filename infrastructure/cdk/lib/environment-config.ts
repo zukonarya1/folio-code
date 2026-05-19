@@ -3,7 +3,6 @@ export type EnvironmentName = 'dev' | 'staging' | 'prod';
 export interface EnvironmentConfig {
   name: EnvironmentName;
   prefix: string;
-  accountId: string;
   region: string;
   domainName?: string;
   deletionPolicy: 'RETAIN' | 'DESTROY';
@@ -13,7 +12,6 @@ export interface EnvironmentConfig {
 
 export function buildEnvironmentConfig(name: EnvironmentName): EnvironmentConfig {
   const base = {
-    accountId: '874962954560',
     region: 'us-west-2',
   };
 
