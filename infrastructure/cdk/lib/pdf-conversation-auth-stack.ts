@@ -244,7 +244,7 @@ def lambda_handler(event, context):
         'cognito-idp:ListUsers',
         'cognito-idp:AdminLinkProviderForUser',
       ],
-      resources: [`arn:aws:cognito-idp:${props.envConfig.region}:${props.envConfig.accountId}:userpool/*`],
+      resources: [`arn:aws:cognito-idp:${props.envConfig.region}:${this.account}:userpool/*`],
     }));
 
     customMessageFn.addPermission('CognitoInvokeCustomMessage', {

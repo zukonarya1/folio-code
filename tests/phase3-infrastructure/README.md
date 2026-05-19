@@ -78,7 +78,7 @@ The integration test failures appear to be related to:
 
 ## Prerequisites
 
-- AWS CLI configured for account 874962954560
+- AWS CLI configured with credentials for the target Folio AWS account
 - Python 3.9+ with virtual environment activated
 - boto3 installed (`pip install -r requirements.txt`)
 - Access to deployed infrastructure stack in us-west-2

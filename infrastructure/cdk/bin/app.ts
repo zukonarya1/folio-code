@@ -18,13 +18,18 @@ if (!validEnvs.includes(envName as EnvironmentName)) {
 const envConfig = buildEnvironmentConfig(envName as EnvironmentName);
 const p = envConfig.prefix;
 
+const account = process.env.CDK_DEFAULT_ACCOUNT;
+if (!account) {
+  throw new Error('CDK_DEFAULT_ACCOUNT is not set. Authenticate via SSO (aws sso login) before running CDK commands.');
+}
+
 const awsEnv = {
-  account: envConfig.accountId,
+  account,
   region: envConfig.region,
 };
 
 const usEast1Env = {
-  account: envConfig.accountId,
+  account,
   region: 'us-east-1',
 };
 
