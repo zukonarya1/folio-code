@@ -4,6 +4,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import awsConfig from '../aws-config';
 import ChatPanel from '../components/ChatPanel';
 import SummaryRenderer from '../components/SummaryRenderer';
+import DocumentTitle from '../components/DocumentTitle';
 
 function DocumentDetail({ user }) {
   const { id } = useParams();
@@ -143,7 +144,9 @@ function DocumentDetail({ user }) {
 
       {docMeta && (
         <div className="document-detail-header card">
-          <h3 className="font-body text-blade-card-title font-semibold text-blade-text mb-1">{docMeta.filename}</h3>
+          <h3 className="font-body text-blade-card-title font-semibold text-blade-text mb-1">
+            <DocumentTitle title={summary?.title} filename={docMeta.filename} clamp={false} />
+          </h3>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-body text-blade-body-sm text-blade-text-muted">{formatDate(docMeta.created_at)}</span>
             <span className="text-blade-text-faint">&middot;</span>

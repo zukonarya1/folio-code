@@ -507,10 +507,22 @@ def lambda_handler(event, context):
             'body': json.dumps({'error': 'Unauthorized'})
         }
 
+    def _extract_title(item):
+        try:
+            gs = item.get('generated_summary')
+            if not gs:
+                return None
+            if isinstance(gs, str):
+                gs = json.loads(gs)
+            return gs.get('title')
+        except Exception:
+            return None
+
     try:
-        # Query documents for this user
         response = table.scan(
-            FilterExpression=Key('user_id').eq(user_id)
+            FilterExpression=Key('user_id').eq(user_id),
+            ProjectionExpression='document_id, original_filename, #s, created_at, vector_count, generated_summary',
+            ExpressionAttributeNames={'#s': 'status'}
         )
 
         documents = [{
@@ -518,7 +530,8 @@ def lambda_handler(event, context):
             'filename': item.get('original_filename', 'Unknown'),
             'status': item.get('status', 'unknown'),
             'created_at': item.get('created_at', ''),
-            'vector_count': int(item.get('vector_count', 0)) if item.get('vector_count') else 0
+            'vector_count': int(item.get('vector_count', 0)) if item.get('vector_count') else 0,
+            'title': _extract_title(item)
         } for item in response.get('Items', [])]
 
         return {

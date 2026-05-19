@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import UploadZone from '../components/UploadZone';
+import DocumentTitle from '../components/DocumentTitle';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import awsConfig from '../aws-config';
 
@@ -169,11 +170,10 @@ function Dashboard({ user }) {
       {heroDoc && (
         <div className="card hub-hero animate-blade-emerge" style={{ animationDelay: '0ms' }}>
           <span className="font-mono text-blade-body-sm text-blade-accent uppercase tracking-[0.1em]">Next Up</span>
-          {heroDoc.summary_title && (
-            <h3 className="font-body text-blade-card-title font-semibold text-blade-text mt-2 mb-1">"{heroDoc.summary_title}"</h3>
-          )}
+          <h3 className="font-body text-blade-card-title font-semibold text-blade-text mt-2 mb-1">
+            <DocumentTitle title={heroDoc.title} filename={heroDoc.filename} clamp={false} />
+          </h3>
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            <span className="font-body text-blade-body-sm text-blade-text-muted">{heroDoc.filename}</span>
             <span className="text-blade-text-faint">&middot;</span>
             <span className={`status-badge ${getStatusClass(heroDoc.status)}`}>{getStatusLabel(heroDoc.status)}</span>
           </div>
@@ -218,10 +218,9 @@ function Dashboard({ user }) {
             style={{ animationDelay: `${(index + 1) * 80}ms` }}
           >
             <div className="document-info">
-              <h4>{doc.filename}</h4>
-              {doc.summary_title && (
-                <p style={{ fontStyle: 'italic', color: 'var(--blade-text-secondary)' }}>"{doc.summary_title}"</p>
-              )}
+              <h4>
+                <DocumentTitle title={doc.title} filename={doc.filename} clamp={true} />
+              </h4>
               <p>{formatDate(doc.created_at)}</p>
             </div>
             <span className={`status-badge ${getStatusClass(doc.status)}`}>{getStatusLabel(doc.status)}</span>
